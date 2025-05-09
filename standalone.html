@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuclear Proximity Finder</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .controls {
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+        }
+
+        #status-message {
+            font-style: italic;
+        }
+
+        #map-container {
+            margin-bottom: 2rem;
+        }
+
+        #map {
+            height: 500px;
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #result-container {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        #result-container h2 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        #closest-reactor-info p {
+            margin-bottom: 0.5rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        footer {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #777;
+            margin-top: 2rem;
+            border-top: 1px solid #ddd;
+            padding-top: 1rem;
+        }
+
+        /* Status indicators */
+        .status-operational {
+            color: #4CAF50;
+        }
+
+        .status-decommissioned {
+            color: #F44336;
+        }
+
+        /* AI Assistant Styles */
+        #ai-container {
+            margin-top: 3rem;
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-container {
+            margin-top: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #chat-messages {
+            height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: #f9f9f9;
+        }
+
+        .user-message, .ai-message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+
+        .user-message {
+            background-color: #E3F2FD;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .ai-message {
+            background-color: #F1F1F1;
+            margin-right: auto;
+        }
+
+        .ai-message ul {
+            padding-left: 1.5rem;
+        }
+
+        .input-container {
+            display: flex;
+            padding: 1rem;
+            border-top: 1px solid #ddd;
+            background-color: white;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 0.5rem;
+            font-size: 1rem;
+        }
+
+        #user-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Nuclear Proximity Finder</h1>
+            <p>Find the closest nuclear reactor to your current location</p>
+        </header>
+        
+        <main>
+            <div class="controls">
+                <button id="find-location" class="btn">Find My Location</button>
+                <div id="status-message"></div>
+            </div>
+
+            <div id="map-container">
+                <div id="map"></div>
+            </div>
+
+            <div id="result-container" class="hidden">
+                <h2>Closest Nuclear Reactor</h2>
+                <div id="closest-reactor-info">
+                    <p><strong>Name:</strong> <span id="reactor-name"></span></p>
+                    <p><strong>Location:</strong> <span id="reactor-location"></span></p>
+                    <p><strong>Distance:</strong> <span id="reactor-distance"></span></p>
+                    <p><strong>Status:</strong> <span id="reactor-status"></span></p>
+                </div>
+            </div>
+
+            <div id="ai-container">
+                <h2>Nuclear Reactor AI Assistant</h2>
+                <p>Ask questions about nuclear reactors, safety, history, etc.</p>
+                <div class="chat-container">
+                    <div id="chat-messages">
+                        <div class="ai-message">
+                            <p>Hello! I'm your nuclear information assistant. You can ask me questions like:</p>
+                            <ul>
+                                <li>"What is the potentially deadliest nuclear reactor?"</li>
+                                <li>"Which state has the most nuclear reactors?"</li>
+                                <li>"Tell me about the Three Mile Island accident"</li>
+                                <li>"How does a nuclear reactor work?"</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="input-container">
+                        <input type="text" id="user-input" placeholder="Ask a question about nuclear reactors...">
+                        <button id="send-button" class="btn">Ask</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>This application is for educational purposes only. Data may not be complete or up-to-date.</p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Nuclear reactor data
+            const reactorData = {
+                "reactors": [
+                    // US Nuclear Reactors - All 94 commercial reactors
+                    // Alabama
+                    {
+                        "name": "Browns Ferry 1",
+                        "location": "Athens, Alabama, USA",
+                        "latitude": 34.7042,
+                        "longitude": -87.1186,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Browns Ferry 2",
+                        "location": "Athens, Alabama, USA",
+                        "latitude": 34.7042,
+                        "longitude": -87.1186,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Browns Ferry 3",
+                        "location": "Athens, Alabama, USA",
+                        "latitude": 34.7042,
+                        "longitude": -87.1186,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Farley 1",
+                        "location": "Columbia, Alabama, USA",
+                        "latitude": 31.2228,
+                        "longitude": -85.1117,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Farley 2",
+                        "location": "Columbia, Alabama, USA",
+                        "latitude": 31.2228,
+                        "longitude": -85.1117,
+                        "status": "operational"
+                    },
+                    // Arizona
+                    {
+                        "name": "Palo Verde 1",
+                        "location": "Wintersburg, Arizona, USA",
+                        "latitude": 33.3897,
+                        "longitude": -112.8644,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Palo Verde 2",
+                        "location": "Wintersburg, Arizona, USA",
+                        "latitude": 33.3897,
+                        "longitude": -112.8644,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Palo Verde 3",
+                        "location": "Wintersburg, Arizona, USA",
+                        "latitude": 33.3897,
+                        "longitude": -112.8644,
+                        "status": "operational"
+                    },
+                    // Arkansas
+                    {
+                        "name": "Arkansas Nuclear One 1",
+                        "location": "Russellville, Arkansas, USA",
+                        "latitude": 35.3103,
+                        "longitude": -93.2308,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Arkansas Nuclear One 2",
+                        "location": "Russellville, Arkansas, USA",
+                        "latitude": 35.3103,
+                        "longitude": -93.2308,
+                        "status": "operational"
+                    },
+                    // California
+                    {
+                        "name": "Diablo Canyon 1",
+                        "location": "Avila Beach, California, USA",
+                        "latitude": 35.2108,
+                        "longitude": -120.8559,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Diablo Canyon 2",
+                        "location": "Avila Beach, California, USA",
+                        "latitude": 35.2108,
+                        "longitude": -120.8559,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "San Onofre 2",
+                        "location": "San Clemente, California, USA",
+                        "latitude": 33.3689,
+                        "longitude": -117.5544,
+                        "status": "decommissioned"
+                    },
+                    {
+                        "name": "San Onofre 3",
+                        "location": "San Clemente, California, USA",
+                        "latitude": 33.3689,
+                        "longitude": -117.5544,
+                        "status": "decommissioned"
+                    },
+                    // Connecticut
+                    {
+                        "name": "Millstone 2",
+                        "location": "Waterford, Connecticut, USA",
+                        "latitude": 41.3086,
+                        "longitude": -72.1681,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Millstone 3",
+                        "location": "Waterford, Connecticut, USA",
+                        "latitude": 41.3086,
+                        "longitude": -72.1681,
+                        "status": "operational"
+                    },
+                    // Florida
+                    {
+                        "name": "St. Lucie 1",
+                        "location": "Jensen Beach, Florida, USA",
+                        "latitude": 27.3486,
+                        "longitude": -80.2464,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "St. Lucie 2",
+                        "location": "Jensen Beach, Florida, USA",
+                        "latitude": 27.3486,
+                        "longitude": -80.2464,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Turkey Point 3",
+                        "location": "Homestead, Florida, USA",
+                        "latitude": 25.4342,
+                        "longitude": -80.3306,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Turkey Point 4",
+                        "location": "Homestead, Florida, USA",
+                        "latitude": 25.4342,
+                        "longitude": -80.3306,
+                        "status": "operational"
+                    },
+                    // Georgia
+                    {
+                        "name": "Hatch 1",
+                        "location": "Baxley, Georgia, USA",
+                        "latitude": 31.9342,
+                        "longitude": -82.3444,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Hatch 2",
+                        "location": "Baxley, Georgia, USA",
+                        "latitude": 31.9342,
+                        "longitude": -82.3444,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Vogtle 1",
+                        "location": "Waynesboro, Georgia, USA",
+                        "latitude": 33.1419,
+                        "longitude": -81.7647,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Vogtle 2",
+                        "location": "Waynesboro, Georgia, USA",
+                        "latitude": 33.1419,
+                        "longitude": -81.7647,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Vogtle 3",
+                        "location": "Waynesboro, Georgia, USA",
+                        "latitude": 33.1419,
+                        "longitude": -81.7647,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Vogtle 4",
+                        "location": "Waynesboro, Georgia, USA",
+                        "latitude": 33.1419,
+                        "longitude": -81.7647,
+                        "status": "operational"
+                    },
+                    // Illinois
+                    {
+                        "name": "Braidwood 1",
+                        "location": "Braidwood, Illinois, USA",
+                        "latitude": 41.2422,
+                        "longitude": -88.2283,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Braidwood 2",
+                        "location": "Braidwood, Illinois, USA",
+                        "latitude": 41.2422,
+                        "longitude": -88.2283,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Byron 1",
+                        "location": "Byron, Illinois, USA",
+                        "latitude": 42.0744,
+                        "longitude": -89.2819,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Byron 2",
+                        "location": "Byron, Illinois, USA",
+                        "latitude": 42.0744,
+                        "longitude": -89.2819,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Clinton",
+                        "location": "Clinton, Illinois, USA",
+                        "latitude": 40.1719,
+                        "longitude": -88.8339,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Dresden 2",
+                        "location": "Morris, Illinois, USA",
+                        "latitude": 41.3897,
+                        "longitude": -88.2711,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Dresden 3",
+                        "location": "Morris, Illinois, USA",
+                        "latitude": 41.3897,
+                        "longitude": -88.2711,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "LaSalle 1",
+                        "location": "Marseilles, Illinois, USA",
+                        "latitude": 41.2456,
+                        "longitude": -88.6692,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "LaSalle 2",
+                        "location": "Marseilles, Illinois, USA",
+                        "latitude": 41.2456,
+                        "longitude": -88.6692,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Quad Cities 1",
+                        "location": "Cordova, Illinois, USA",
+                        "latitude": 41.7267,
+                        "longitude": -90.3103,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Quad Cities 2",
+                        "location": "Cordova, Illinois, USA",
+                        "latitude": 41.7267,
+                        "longitude": -90.3103,
+                        "status": "operational"
+                    },
+                    // Iowa
+                    {
+                        "name": "Duane Arnold",
+                        "location": "Palo, Iowa, USA",
+                        "latitude": 42.1008,
+                        "longitude": -91.7742,
+                        "status": "decommissioned"
+                    },
+                    // Kansas
+                    {
+                        "name": "Wolf Creek",
+                        "location": "Burlington, Kansas, USA",
+                        "latitude": 38.2392,
+                        "longitude": -95.6883,
+                        "status": "operational"
+                    },
+                    // Louisiana
+                    {
+                        "name": "River Bend",
+                        "location": "St. Francisville, Louisiana, USA",
+                        "latitude": 30.7572,
+                        "longitude": -91.3361,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Waterford 3",
+                        "location": "Killona, Louisiana, USA",
+                        "latitude": 29.9953,
+                        "longitude": -90.4711,
+                        "status": "operational"
+                    },
+                    // Maryland
+                    {
+                        "name": "Calvert Cliffs 1",
+                        "location": "Lusby, Maryland, USA",
+                        "latitude": 38.4314,
+                        "longitude": -76.4419,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Calvert Cliffs 2",
+                        "location": "Lusby, Maryland, USA",
+                        "latitude": 38.4314,
+                        "longitude": -76.4419,
+                        "status": "operational"
+                    },
+                    // Michigan
+                    {
+                        "name": "Cook 1",
+                        "location": "Bridgman, Michigan, USA",
+                        "latitude": 41.9756,
+                        "longitude": -86.5717,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Cook 2",
+                        "location": "Bridgman, Michigan, USA",
+                        "latitude": 41.9756,
+                        "longitude": -86.5717,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Fermi 2",
+                        "location": "Newport, Michigan, USA",
+                        "latitude": 41.9622,
+                        "longitude": -83.2575,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Palisades",
+                        "location": "Covert, Michigan, USA",
+                        "latitude": 42.3233,
+                        "longitude": -86.3153,
+                        "status": "decommissioned"
+                    },
+                    // Minnesota
+                    {
+                        "name": "Monticello",
+                        "location": "Monticello, Minnesota, USA",
+                        "latitude": 45.3333,
+                        "longitude": -93.8483,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Prairie Island 1",
+                        "location": "Red Wing, Minnesota, USA",
+                        "latitude": 44.6217,
+                        "longitude": -92.6331,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Prairie Island 2",
+                        "location": "Red Wing, Minnesota, USA",
+                        "latitude": 44.6217,
+                        "longitude": -92.6331,
+                        "status": "operational"
+                    },
+                    // Mississippi
+                    {
+                        "name": "Grand Gulf",
+                        "location": "Port Gibson, Mississippi, USA",
+                        "latitude": 32.0078,
+                        "longitude": -91.0481,
+                        "status": "operational"
+                    },
+                    // Missouri
+                    {
+                        "name": "Callaway",
+                        "location": "Fulton, Missouri, USA",
+                        "latitude": 38.7617,
+                        "longitude": -91.7794,
+                        "status": "operational"
+                    },
+                    // Nebraska
+                    {
+                        "name": "Cooper",
+                        "location": "Brownville, Nebraska, USA",
+                        "latitude": 40.3625,
+                        "longitude": -95.6411,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Fort Calhoun",
+                        "location": "Fort Calhoun, Nebraska, USA",
+                        "latitude": 41.5208,
+                        "longitude": -96.0769,
+                        "status": "decommissioned"
+                    },
+                    // New Hampshire
+                    {
+                        "name": "Seabrook",
+                        "location": "Seabrook, New Hampshire, USA",
+                        "latitude": 42.8992,
+                        "longitude": -70.8506,
+                        "status": "operational"
+                    },
+                    // New Jersey
+                    {
+                        "name": "Hope Creek",
+                        "location": "Hancocks Bridge, New Jersey, USA",
+                        "latitude": 39.4678,
+                        "longitude": -75.5381,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Oyster Creek",
+                        "location": "Forked River, New Jersey, USA",
+                        "latitude": 39.8142,
+                        "longitude": -74.2053,
+                        "status": "decommissioned"
+                    },
+                    {
+                        "name": "Salem 1",
+                        "location": "Hancocks Bridge, New Jersey, USA",
+                        "latitude": 39.4633,
+                        "longitude": -75.5356,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Salem 2",
+                        "location": "Hancocks Bridge, New Jersey, USA",
+                        "latitude": 39.4633,
+                        "longitude": -75.5356,
+                        "status": "operational"
+                    },
+                    // New York
+                    {
+                        "name": "FitzPatrick",
+                        "location": "Scriba, New York, USA",
+                        "latitude": 43.5239,
+                        "longitude": -76.3983,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Ginna",
+                        "location": "Ontario, New York, USA",
+                        "latitude": 43.2778,
+                        "longitude": -77.3089,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Indian Point 2",
+                        "location": "Buchanan, New York, USA",
+                        "latitude": 41.2697,
+                        "longitude": -73.9522,
+                        "status": "decommissioned"
+                    },
+                    {
+                        "name": "Indian Point 3",
+                        "location": "Buchanan, New York, USA",
+                        "latitude": 41.2697,
+                        "longitude": -73.9522,
+                        "status": "decommissioned"
+                    },
+                    {
+                        "name": "Nine Mile Point 1",
+                        "location": "Scriba, New York, USA",
+                        "latitude": 43.5214,
+                        "longitude": -76.4053,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Nine Mile Point 2",
+                        "location": "Scriba, New York, USA",
+                        "latitude": 43.5214,
+                        "longitude": -76.4053,
+                        "status": "operational"
+                    },
+                    // North Carolina
+                    {
+                        "name": "Brunswick 1",
+                        "location": "Southport, North Carolina, USA",
+                        "latitude": 33.9583,
+                        "longitude": -77.9550,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Brunswick 2",
+                        "location": "Southport, North Carolina, USA",
+                        "latitude": 33.9583,
+                        "longitude": -77.9550,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Harris",
+                        "location": "New Hill, North Carolina, USA",
+                        "latitude": 35.6333,
+                        "longitude": -78.9569,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "McGuire 1",
+                        "location": "Huntersville, North Carolina, USA",
+                        "latitude": 35.4331,
+                        "longitude": -80.9483,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "McGuire 2",
+                        "location": "Huntersville, North Carolina, USA",
+                        "latitude": 35.4331,
+                        "longitude": -80.9483,
+                        "status": "operational"
+                    },
+                    // Ohio
+                    {
+                        "name": "Davis-Besse",
+                        "location": "Oak Harbor, Ohio, USA",
+                        "latitude": 41.5967,
+                        "longitude": -83.0864,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Perry",
+                        "location": "Perry, Ohio, USA",
+                        "latitude": 41.8006,
+                        "longitude": -81.1439,
+                        "status": "operational"
+                    },
+                    // Pennsylvania
+                    {
+                        "name": "Beaver Valley 1",
+                        "location": "Shippingport, Pennsylvania, USA",
+                        "latitude": 40.6231,
+                        "longitude": -80.4336,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Beaver Valley 2",
+                        "location": "Shippingport, Pennsylvania, USA",
+                        "latitude": 40.6231,
+                        "longitude": -80.4336,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Limerick 1",
+                        "location": "Limerick, Pennsylvania, USA",
+                        "latitude": 40.2258,
+                        "longitude": -75.5867,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Limerick 2",
+                        "location": "Limerick, Pennsylvania, USA",
+                        "latitude": 40.2258,
+                        "longitude": -75.5867,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Peach Bottom 2",
+                        "location": "Delta, Pennsylvania, USA",
+                        "latitude": 39.7589,
+                        "longitude": -76.2692,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Peach Bottom 3",
+                        "location": "Delta, Pennsylvania, USA",
+                        "latitude": 39.7589,
+                        "longitude": -76.2692,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Susquehanna 1",
+                        "location": "Salem Township, Pennsylvania, USA",
+                        "latitude": 41.0886,
+                        "longitude": -76.1483,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Susquehanna 2",
+                        "location": "Salem Township, Pennsylvania, USA",
+                        "latitude": 41.0886,
+                        "longitude": -76.1483,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Three Mile Island 1",
+                        "location": "Londonderry Township, Pennsylvania, USA",
+                        "latitude": 40.1536,
+                        "longitude": -76.7239,
+                        "status": "decommissioned"
+                    },
+                    {
+                        "name": "Three Mile Island 2",
+                        "location": "Londonderry Township, Pennsylvania, USA",
+                        "latitude": 40.1536,
+                        "longitude": -76.7239,
+                        "status": "decommissioned"
+                    },
+                    // South Carolina
+                    {
+                        "name": "Catawba 1",
+                        "location": "York, South Carolina, USA",
+                        "latitude": 35.0522,
+                        "longitude": -81.0697,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Catawba 2",
+                        "location": "York, South Carolina, USA",
+                        "latitude": 35.0522,
+                        "longitude": -81.0697,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Oconee 1",
+                        "location": "Seneca, South Carolina, USA",
+                        "latitude": 34.7917,
+                        "longitude": -82.8986,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Oconee 2",
+                        "location": "Seneca, South Carolina, USA",
+                        "latitude": 34.7917,
+                        "longitude": -82.8986,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Oconee 3",
+                        "location": "Seneca, South Carolina, USA",
+                        "latitude": 34.7917,
+                        "longitude": -82.8986,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Summer",
+                        "location": "Jenkinsville, South Carolina, USA",
+                        "latitude": 34.2983,
+                        "longitude": -81.3153,
+                        "status": "operational"
+                    },
+                    // Tennessee
+                    {
+                        "name": "Sequoyah 1",
+                        "location": "Soddy-Daisy, Tennessee, USA",
+                        "latitude": 35.2267,
+                        "longitude": -85.0917,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Sequoyah 2",
+                        "location": "Soddy-Daisy, Tennessee, USA",
+                        "latitude": 35.2267,
+                        "longitude": -85.0917,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Watts Bar 1",
+                        "location": "Spring City, Tennessee, USA",
+                        "latitude": 35.6025,
+                        "longitude": -84.7892,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Watts Bar 2",
+                        "location": "Spring City, Tennessee, USA",
+                        "latitude": 35.6025,
+                        "longitude": -84.7892,
+                        "status": "operational"
+                    },
+                    // Texas
+                    {
+                        "name": "Comanche Peak 1",
+                        "location": "Glen Rose, Texas, USA",
+                        "latitude": 32.2983,
+                        "longitude": -97.7856,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Comanche Peak 2",
+                        "location": "Glen Rose, Texas, USA",
+                        "latitude": 32.2983,
+                        "longitude": -97.7856,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "South Texas 1",
+                        "location": "Bay City, Texas, USA",
+                        "latitude": 28.7958,
+                        "longitude": -96.0478,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "South Texas 2",
+                        "location": "Bay City, Texas, USA",
+                        "latitude": 28.7958,
+                        "longitude": -96.0478,
+                        "status": "operational"
+                    },
+                    // Virginia
+                    {
+                        "name": "North Anna 1",
+                        "location": "Mineral, Virginia, USA",
+                        "latitude": 38.0606,
+                        "longitude": -77.7889,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "North Anna 2",
+                        "location": "Mineral, Virginia, USA",
+                        "latitude": 38.0606,
+                        "longitude": -77.7889,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Surry 1",
+                        "location": "Surry, Virginia, USA",
+                        "latitude": 37.1656,
+                        "longitude": -76.6983,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Surry 2",
+                        "location": "Surry, Virginia, USA",
+                        "latitude": 37.1656,
+                        "longitude": -76.6983,
+                        "status": "operational"
+                    },
+                    // Washington
+                    {
+                        "name": "Columbia",
+                        "location": "Richland, Washington, USA",
+                        "latitude": 46.4711,
+                        "longitude": -119.3311,
+                        "status": "operational"
+                    },
+                    // Wisconsin
+                    {
+                        "name": "Point Beach 1",
+                        "location": "Two Rivers, Wisconsin, USA",
+                        "latitude": 44.2811,
+                        "longitude": -87.5361,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Point Beach 2",
+                        "location": "Two Rivers, Wisconsin, USA",
+                        "latitude": 44.2811,
+                        "longitude": -87.5361,
+                        "status": "operational"
+                    },
+                    // International Reactors
+                    {
+                        "name": "Fukushima Daiichi",
+                        "location": "Fukushima, Japan",
+                        "latitude": 37.4212,
+                        "longitude": 141.0334,
+                        "status": "decommissioned"
+                    },
+                    {
+                        "name": "Flamanville",
+                        "location": "Normandy, France",
+                        "latitude": 49.5359,
+                        "longitude": -1.8816,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Bruce Nuclear",
+                        "location": "Ontario, Canada",
+                        "latitude": 44.3238,
+                        "longitude": -81.5962,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Taishan",
+                        "location": "Guangdong, China",
+                        "latitude": 21.9096,
+                        "longitude": 112.9997,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Gravelines",
+                        "location": "Gravelines, France",
+                        "latitude": 51.0153,
+                        "longitude": 2.1366,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Sellafield",
+                        "location": "Cumbria, UK",
+                        "latitude": 54.4191,
+                        "longitude": -3.5007,
+                        "status": "decommissioned"
+                    },
+                    {
+                        "name": "Kudankulam",
+                        "location": "Tamil Nadu, India",
+                        "latitude": 8.1689,
+                        "longitude": 77.7113,
+                        "status": "operational"
+                    },
+                    {
+                        "name": "Yangjiang",
+                        "location": "Guangdong, China",
+                        "latitude": 21.7095,
+                        "longitude": 112.2586,
+                        "status": "operational"
+                    }
+                ]
+            };
+
+            // DOM Elements
+            const findLocationBtn = document.getElementById('find-location');
+            const statusMessage = document.getElementById('status-message');
+            const resultContainer = document.getElementById('result-container');
+            const reactorName = document.getElementById('reactor-name');
+            const reactorLocation = document.getElementById('reactor-location');
+            const reactorDistance = document.getElementById('reactor-distance');
+            const reactorStatus = document.getElementById('reactor-status');
+            
+            // Map initialization
+            const map = L.map('map').setView([20, 0], 2);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Markers storage
+            let userMarker;
+            const reactorMarkers = [];
+            
+            // Load reactor data from the embedded JSON
+            function loadReactorData() {
+                try {
+                    // Add markers for all reactors
+                    reactorData.reactors.forEach(reactor => {
+                        const marker = L.marker([reactor.latitude, reactor.longitude])
+                            .addTo(map)
+                            .bindPopup(`<b>${reactor.name}</b><br>${reactor.location}<br>Status: ${reactor.status}`);
+                        
+                        reactorMarkers.push({
+                            marker,
+                            data: reactor
+                        });
+                    });
+                    
+                    return reactorData.reactors;
+                } catch (error) {
+                    console.error('Error loading reactor data:', error);
+                    statusMessage.textContent = 'Error loading reactor data. Please try again later.';
+                    return [];
+                }
+            }
+            
+            // Calculate distance between two points using Haversine formula
+            function calculateDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371; // Radius of the Earth in km
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = 
+                    Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                const distance = R * c; // Distance in km
+                
+                return distance;
+            }
+            
+            // Find closest reactor to a given position
+            function findClosestReactor(latitude, longitude, reactors) {
+                let closestReactor = null;
+                let minDistance = Infinity;
+                
+                reactors.forEach(reactor => {
+                    const distance = calculateDistance(
+                        latitude, 
+                        longitude, 
+                        reactor.latitude, 
+                        reactor.longitude
+                    );
+                    
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestReactor = {
+                            ...reactor,
+                            distance: distance
+                        };
+                    }
+                });
+                
+                return closestReactor;
+            }
+            
+            // Display the closest reactor information
+            function displayClosestReactor(reactor) {
+                reactorName.textContent = reactor.name;
+                reactorLocation.textContent = reactor.location;
+                reactorDistance.textContent = `${reactor.distance.toFixed(2)} km`;
+                reactorStatus.textContent = reactor.status;
+                reactorStatus.className = `status-${reactor.status}`;
+                
+                resultContainer.classList.remove('hidden');
+            }
+            
+            // Get user location and find closest reactor
+            function findUserLocation() {
+                try {
+                    statusMessage.textContent = 'Getting your location...';
+                    
+                    // Load reactor data
+                    const reactors = loadReactorData();
+                    
+                    if (!reactors.length) {
+                        return;
+                    }
+                    
+                    if (!navigator.geolocation) {
+                        throw new Error('Geolocation is not supported by your browser');
+                    }
+                    
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            const { latitude, longitude } = position.coords;
+                            
+                            // Update user marker on map
+                            if (userMarker) {
+                                map.removeLayer(userMarker);
+                            }
+                            
+                            userMarker = L.marker([latitude, longitude], {
+                                icon: L.icon({
+                                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+                                    iconSize: [25, 41],
+                                    iconAnchor: [12, 41],
+                                    popupAnchor: [1, -34]
+                                })
+                            }).addTo(map).bindPopup('Your location');
+                            
+                            // Find closest reactor
+                            const closestReactor = findClosestReactor(latitude, longitude, reactors);
+                            
+                            // Draw line between user and closest reactor
+                            const line = L.polyline([
+                                [latitude, longitude],
+                                [closestReactor.latitude, closestReactor.longitude]
+                            ], {color: 'red', dashArray: '5, 10'}).addTo(map);
+                            
+                            // Zoom map to show both points
+                            const bounds = L.latLngBounds([
+                                [latitude, longitude],
+                                [closestReactor.latitude, closestReactor.longitude]
+                            ]);
+                            map.fitBounds(bounds, {padding: [50, 50]});
+                            
+                            // Display result
+                            displayClosestReactor(closestReactor);
+                            
+                            statusMessage.textContent = 'Location found!';
+                        },
+                        (error) => {
+                            console.error('Error getting location:', error);
+                            let errorMsg = 'Error getting your location.';
+                            
+                            switch(error.code) {
+                                case error.PERMISSION_DENIED:
+                                    errorMsg = 'Location access denied. Please enable location services.';
+                                    break;
+                                case error.POSITION_UNAVAILABLE:
+                                    errorMsg = 'Location information is unavailable.';
+                                    break;
+                                case error.TIMEOUT:
+                                    errorMsg = 'Location request timed out.';
+                                    break;
+                            }
+                            
+                            statusMessage.textContent = errorMsg;
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 0
+                        }
+                    );
+                } catch (error) {
+                    console.error('Error:', error);
+                    statusMessage.textContent = error.message;
+                }
+            }
+            
+            // Event listeners
+            findLocationBtn.addEventListener('click', findUserLocation);
+
+            // AI Assistant functionality
+            const userInput = document.getElementById('user-input');
+            const sendButton = document.getElementById('send-button');
+            const chatMessages = document.getElementById('chat-messages');
+
+            // Nuclear knowledge base for the AI
+            const nuclearKnowledge = {
+                // Nuclear facts and information
+                facts: {
+                    "deadliest": "The Chernobyl Nuclear Power Plant in Ukraine (former Soviet Union) is considered the potentially deadliest due to the 1986 accident that resulted in 31 immediate deaths and long-term health effects for thousands more. It released 400 times more radiation than the Hiroshima bomb.",
+                    "most_reactors_state": "Illinois has the most nuclear reactors with 11 operational units across 6 plants.",
+                    "three_mile_island": "The Three Mile Island accident occurred on March 28, 1979, in Pennsylvania, USA. It was a partial meltdown in Unit 2 and was the most significant accident in U.S. commercial nuclear power plant history. While it led to no deaths or injuries, it had a significant impact on public perception and regulatory policies.",
+                    "fukushima": "The Fukushima Daiichi nuclear disaster occurred on March 11, 2011, after a major earthquake and tsunami. It was the most severe nuclear accident since Chernobyl, resulting in three meltdowns and the release of radioactive materials.",
+                    "how_reactor_works": "Nuclear reactors work by splitting uranium atoms (fission) to produce heat, which converts water into steam. This steam powers turbines to generate electricity. Control rods regulate the reaction, and water serves as both coolant and moderator in most designs.",
+                    "safety_measures": "Nuclear reactors incorporate multiple safety systems including containment buildings, control rods, emergency cooling systems, and redundant power supplies. Modern designs feature passive safety systems that don't require electricity or human intervention.",
+                    "waste_disposal": "Nuclear waste is typically stored in cooling pools on-site initially, then moved to dry cask storage. Long-term solutions include deep geological repositories. The waste remains radioactive for thousands of years, which is a significant challenge.",
+                    "oldest_reactor": "The oldest operating commercial nuclear reactor in the United States is Nine Mile Point Unit 1 in New York, which began operation in December 1969.",
+                    "newest_reactor": "The newest operating commercial nuclear power reactor in the United States is Vogtle Unit 4 in Georgia, which was connected to the grid in 2023.",
+                },
+                // Reactor-specific information
+                reactors: {
+                    // Function to get reactor count by state
+                    getStateCount: function(reactorData) {
+                        const stateCounts = {};
+                        reactorData.forEach(reactor => {
+                            const location = reactor.location;
+                            const stateMatch = location.match(/([A-Z][a-z]+), USA/);
+                            if (stateMatch && stateMatch[1]) {
+                                const state = stateMatch[1];
+                                stateCounts[state] = (stateCounts[state] || 0) + 1;
+                            }
+                        });
+                        return stateCounts;
+                    },
+                    // Function to get specific data about reactors
+                    getReactorsByState: function(state, reactorData) {
+                        return reactorData.filter(reactor =>
+                            reactor.location.includes(state + ", USA")
+                        );
+                    },
+                    // Function to find decommissioned reactors
+                    getDecommissioned: function(reactorData) {
+                        return reactorData.filter(reactor =>
+                            reactor.status === "decommissioned"
+                        );
+                    }
+                }
+            };
+
+            // Add event listeners for the AI assistant
+            sendButton.addEventListener('click', handleUserQuestion);
+            userInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleUserQuestion();
+                }
+            });
+
+            // Function to handle user questions
+            function handleUserQuestion() {
+                const question = userInput.value.trim();
+                if (!question) return;
+
+                // Add user message to chat
+                addMessage(question, 'user');
+
+                // Process the question and generate a response
+                const response = generateResponse(question, reactorData.reactors);
+
+                // Add AI response to chat
+                setTimeout(() => {
+                    addMessage(response, 'ai');
+                }, 500); // Small delay to simulate thinking
+
+                // Clear input field
+                userInput.value = '';
+            }
+
+            // Function to add a message to the chat
+            function addMessage(text, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = sender + '-message';
+
+                const messagePara = document.createElement('p');
+                messagePara.textContent = text;
+                messageDiv.appendChild(messagePara);
+
+                chatMessages.appendChild(messageDiv);
+
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            // Function to generate a response based on the question
+            function generateResponse(question, reactorData) {
+                // Convert question to lowercase for easier matching
+                const lowerQuestion = question.toLowerCase();
+
+                // Check for questions about the deadliest reactor
+                if (lowerQuestion.includes('deadliest') ||
+                    (lowerQuestion.includes('dangerous') && lowerQuestion.includes('reactor'))) {
+                    return nuclearKnowledge.facts.deadliest;
+                }
+
+                // Check for questions about which state has the most reactors
+                if ((lowerQuestion.includes('state') && lowerQuestion.includes('most')) ||
+                    (lowerQuestion.includes('where') && lowerQuestion.includes('most'))) {
+                    return nuclearKnowledge.facts.most_reactors_state;
+                }
+
+                // Check for questions about Three Mile Island
+                if (lowerQuestion.includes('three mile') || lowerQuestion.includes('tmi')) {
+                    return nuclearKnowledge.facts.three_mile_island;
+                }
+
+                // Check for questions about Fukushima
+                if (lowerQuestion.includes('fukushima')) {
+                    return nuclearKnowledge.facts.fukushima;
+                }
+
+                // Check for questions about how reactors work
+                if ((lowerQuestion.includes('how') && lowerQuestion.includes('work')) ||
+                    (lowerQuestion.includes('how') && lowerQuestion.includes('function'))) {
+                    return nuclearKnowledge.facts.how_reactor_works;
+                }
+
+                // Check for questions about safety
+                if (lowerQuestion.includes('safe') || lowerQuestion.includes('safety')) {
+                    return nuclearKnowledge.facts.safety_measures;
+                }
+
+                // Check for questions about waste
+                if (lowerQuestion.includes('waste') || lowerQuestion.includes('disposal')) {
+                    return nuclearKnowledge.facts.waste_disposal;
+                }
+
+                // Check for questions about oldest reactor
+                if (lowerQuestion.includes('oldest')) {
+                    return nuclearKnowledge.facts.oldest_reactor;
+                }
+
+                // Check for questions about newest reactor
+                if (lowerQuestion.includes('newest') || lowerQuestion.includes('recent')) {
+                    return nuclearKnowledge.facts.newest_reactor;
+                }
+
+                // Check for questions about specific states
+                const states = [
+                    "Alabama", "Arizona", "Arkansas", "California", "Connecticut",
+                    "Florida", "Georgia", "Illinois", "Iowa", "Kansas", "Louisiana",
+                    "Maryland", "Michigan", "Minnesota", "Mississippi", "Missouri",
+                    "Nebraska", "New Hampshire", "New Jersey", "New York", "North Carolina",
+                    "Ohio", "Pennsylvania", "South Carolina", "Tennessee", "Texas",
+                    "Virginia", "Washington", "Wisconsin"
+                ];
+
+                for (const state of states) {
+                    if (lowerQuestion.includes(state.toLowerCase())) {
+                        const stateReactors = nuclearKnowledge.reactors.getReactorsByState(state, reactorData);
+                        if (stateReactors.length > 0) {
+                            const operational = stateReactors.filter(r => r.status === "operational").length;
+                            const decommissioned = stateReactors.filter(r => r.status === "decommissioned").length;
+                            return `${state} has ${stateReactors.length} nuclear reactors (${operational} operational, ${decommissioned} decommissioned). The reactors are located in: ${[...new Set(stateReactors.map(r => r.location.split(',')[0]))].join(', ')}.`;
+                        } else {
+                            return `I couldn't find any nuclear reactors in ${state} in my database.`;
+                        }
+                    }
+                }
+
+                // Check for questions about decommissioned reactors
+                if (lowerQuestion.includes('decommission')) {
+                    const decommissioned = nuclearKnowledge.reactors.getDecommissioned(reactorData);
+                    return `There are ${decommissioned.length} decommissioned commercial nuclear reactors in the United States, including ${decommissioned.map(r => r.name).join(', ')}.`;
+                }
+
+                // Default response if no specific question is matched
+                return "I'm not sure about that. You can ask me about specific reactors, states with nuclear plants, safety measures, how reactors work, or historical accidents like Three Mile Island or Fukushima.";
+            }
+        });
+    </script>
+</body>
+</html>
