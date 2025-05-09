@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Web Apps</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        .section {
+            flex: 1;
+            padding: 20px;
+            border: 1px solid #ccc;
+            overflow: auto;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 0;
+        }
+        .note-app textarea {
+            width: 100%;
+            height: 70%;
+            margin-bottom: 10px;
+            resize: none;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .note-app button {
+            padding: 8px 16px;
+            margin-right: 5px;
+            cursor: pointer;
+        }
+        #notes-list {
+            margin-top: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .note-item {
+            padding: 5px;
+            margin-bottom: 5px;
+            border: 1px solid #eee;
+            cursor: pointer;
+            background-color: #f9f9f9;
+        }
+        /* Todo App Styles */
+        .todo-app input[type="text"] {
+            width: 70%;
+            padding: 8px;
+            box-sizing: border-box;
+            margin-right: 5px;
+        }
+        .todo-app button {
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+        #todo-list {
+            margin-top: 20px;
+            max-height: calc(100% - 100px);
+            overflow-y: auto;
+        }
+        .todo-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 5px;
+            margin-bottom: 5px;
+            border: 1px solid #eee;
+            background-color: #f9f9f9;
+        }
+        .todo-item label {
+            margin-left: 10px;
+            flex-grow: 1;
+        }
+        .todo-item.completed label {
+            text-decoration: line-through;
+            color: #888;
+        }
+        .delete-todo {
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 3px 8px;
+            cursor: pointer;
+        }
+        /* API Call Feature Styles */
+        .api-app select, .api-app button {
+            padding: 8px 16px;
+            margin-bottom: 10px;
+        }
+        .api-app select {
+            width: 100%;
+        }
+        .api-app button {
+            width: 100%;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+        }
+        #api-result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: calc(100% - 150px);
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section note-app">
+            <h2>Note Taking App</h2>
+            <textarea id="note-content" placeholder="Type your note here..."></textarea>
+            <div>
+                <button id="save-note">Save Note</button>
+                <button id="clear-note">Clear</button>
+            </div>
+            <div id="notes-list"></div>
+        </div>
+        <div class="section todo-app">
+            <h2>To-Do App</h2>
+            <div>
+                <input type="text" id="todo-input" placeholder="Add a new task...">
+                <button id="add-todo">Add</button>
+            </div>
+            <div id="todo-list"></div>
+        </div>
+        <div class="section api-app">
+            <h2>API Call Feature</h2>
+            <select id="api-endpoint">
+                <option value="https://jsonplaceholder.typicode.com/posts/1">Get a Post</option>
+                <option value="https://jsonplaceholder.typicode.com/users/1">Get a User</option>
+                <option value="https://jsonplaceholder.typicode.com/comments?postId=1">Get Comments</option>
+                <option value="https://jsonplaceholder.typicode.com/albums">Get Albums</option>
+                <option value="https://jsonplaceholder.typicode.com/todos/1">Get a Todo</option>
+            </select>
+            <button id="fetch-api">Fetch Data</button>
+            <div id="api-result">API results will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Note Taking App
+            const noteContent = document.getElementById('note-content');
+            const saveNoteBtn = document.getElementById('save-note');
+            const clearNoteBtn = document.getElementById('clear-note');
+            const notesList = document.getElementById('notes-list');
+            
+            // Load notes from localStorage
+            let notes = JSON.parse(localStorage.getItem('notes') || '[]');
+            
+            // Display saved notes
+            function displayNotes() {
+                notesList.innerHTML = '';
+                notes.forEach((note, index) => {
+                    const noteItem = document.createElement('div');
+                    noteItem.className = 'note-item';
+                    noteItem.textContent = note.title || `Note ${index + 1}`;
+                    noteItem.addEventListener('click', () => {
+                        noteContent.value = note.content;
+                        currentNoteIndex = index;
+                    });
+                    notesList.appendChild(noteItem);
+                });
+            }
+            
+            // Initial display
+            displayNotes();
+            
+            let currentNoteIndex = -1;
+            
+            // Save note
+            saveNoteBtn.addEventListener('click', function() {
+                if (noteContent.value.trim() === '') return;
+                
+                const content = noteContent.value;
+                const title = content.split('\n')[0].substring(0, 20);
+                
+                if (currentNoteIndex >= 0) {
+                    // Update existing note
+                    notes[currentNoteIndex] = { title, content };
+                } else {
+                    // Create new note
+                    notes.push({ title, content });
+                }
+                
+                localStorage.setItem('notes', JSON.stringify(notes));
+                displayNotes();
+                currentNoteIndex = -1;
+            });
+            
+            // Clear note
+            clearNoteBtn.addEventListener('click', function() {
+                noteContent.value = '';
+                currentNoteIndex = -1;
+            });
+
+            // Todo App
+            const todoInput = document.getElementById('todo-input');
+            const addTodoBtn = document.getElementById('add-todo');
+            const todoList = document.getElementById('todo-list');
+            
+            // Load todos from localStorage
+            let todos = JSON.parse(localStorage.getItem('todos') || '[]');
+            
+            // Display todos
+            function displayTodos() {
+                todoList.innerHTML = '';
+                todos.forEach((todo, index) => {
+                    const todoItem = document.createElement('div');
+                    todoItem.className = 'todo-item' + (todo.completed ? ' completed' : '');
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.checked = todo.completed;
+                    checkbox.addEventListener('change', () => {
+                        todos[index].completed = checkbox.checked;
+                        localStorage.setItem('todos', JSON.stringify(todos));
+                        displayTodos();
+                    });
+                    
+                    const label = document.createElement('label');
+                    label.textContent = todo.text;
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-todo';
+                    deleteBtn.textContent = 'X';
+                    deleteBtn.addEventListener('click', () => {
+                        todos.splice(index, 1);
+                        localStorage.setItem('todos', JSON.stringify(todos));
+                        displayTodos();
+                    });
+                    
+                    todoItem.appendChild(checkbox);
+                    todoItem.appendChild(label);
+                    todoItem.appendChild(deleteBtn);
+                    todoList.appendChild(todoItem);
+                });
+            }
+            
+            // Initial display
+            displayTodos();
+            
+            // Add todo
+            function addTodo() {
+                const text = todoInput.value.trim();
+                if (text === '') return;
+                
+                todos.push({ text, completed: false });
+                localStorage.setItem('todos', JSON.stringify(todos));
+                todoInput.value = '';
+                displayTodos();
+            }
+            
+            addTodoBtn.addEventListener('click', addTodo);
+            
+            todoInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addTodo();
+                }
+            });
+
+            // API Call Feature
+            const apiEndpointSelect = document.getElementById('api-endpoint');
+            const fetchApiBtn = document.getElementById('fetch-api');
+            const apiResult = document.getElementById('api-result');
+            
+            fetchApiBtn.addEventListener('click', function() {
+                apiResult.textContent = 'Loading...';
+                
+                fetch(apiEndpointSelect.value)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        apiResult.textContent = JSON.stringify(data, null, 2);
+                    })
+                    .catch(error => {
+                        apiResult.textContent = 'Error: ' + error.message;
+                    });
+            });
+        });
+    </script>
+</body>
+</html>
